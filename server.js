@@ -1,5 +1,4 @@
 const path = require('path');
-
 const five = require('johnny-five');
 const Tessel = require('tessel-io');
 const board = new five.Board({
@@ -28,13 +27,26 @@ board.on('ready', () => {
 
   app.use(express.static(path.join(__dirname, 'public')));
 
-  app.get('/', function(req, res) {
+  app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname, '/public/index.html'));
   });
 
-  // Our code here!
+  app.post('/', (req, res) => {
+    const { color } = req.body;
+    console.log('setting the color: to %s. ', color);
+    led.color(color);
+    res.sendFile(path.join(__dirname, 'public/index.html'));
+  });
 
-  http.listen(port, function() {
+  // Our code here!
+  io.on('connection', (socket) => {
+    socket.on('color change', data => {
+      console.log({ data });
+      led.color(data.color);
+    })
+  });
+
+  http.listen(port, function () {
     console.log(
       'Your server is up and running on Port ' + port + '. Good job!',
     );
