@@ -4,38 +4,37 @@ var board = new five.Board({
   io: new Tessel(),
 });
 
-const throttle = require('lodash/throttle');
-const Barcli = require('Barcli');
-const request = require('superagent');
+const env = require('./env');
+const sendgrid = require('@sendgrid/mail');
+sendgrid.setApiKey(env.sendgrid);
 
-const graphs = {
-  temperature: new Barcli({ label: 'Temperature', range: [0, 120] }),
-  pressure: new Barcli({ label: 'Pressure', range: [0, 100] }),
-  relativeHumidity: new Barcli({ label: 'Relative Humidity', range: [0, 100] })
+const throttle = require('lodash/throttle');
+
+const openMessage = {
+  to: 'tessel-earl@mailinator.com',
+  from: 'no-reply@mailinator.com',
+  subject: 'The Door has been opened',
+  text: 'Everything we feared is happening now.',
+  html: '<p>Everything we feared is happening now.</p>',
 };
 
 board.on('ready', () => {
-  const monitor = new five.Multi({
-    controller: 'BME280',
+  const door = new five.Switch({
+    pin: 'a2',
+    invert: true,
   });
 
-  const handleChange = throttle(() => {
-    const temperature = monitor.thermometer.fahrenheit;
-    const pressure = monitor.barometer.pressure;
-    const relativeHumidity = monitor.hygrometer.relativeHumidity;
-    // console.log({ temperature, pressure, relativeHumidity });
-    graphs.temperature.update(temperature);
-    graphs.pressure.update(pressure);
-    graphs.relativeHumidity.update(relativeHumidity);
-    // request
-    // .post('https://dark-raptor.glitch.me/')
-    // .send({ temperature, pressure, relativeHumidity })
-    // .set('accept', 'json')
-    // .end((err, res) => {
-    //   if (err) return console.error(err);
-    //   console.log('Updating server', { response })
-    // });
-  }, 470);
+  const handleOpen = throttle(() => {
+    console.log('handle Open');
+    sendgrid.send(openMessage)
+      .then(() => {
+        console.log('sent the warning message. preparing to panic');
+      })
+      .catch(() => {
+        console.log('something went terribly terribly wrong');;
+      }, 2000);
+  });
 
-  monitor.on('change', handleChange);
+  door.on('open', handleOpen);
+  door.on('close', () => { console.log('close'); })
 });
