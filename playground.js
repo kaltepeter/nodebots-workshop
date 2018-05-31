@@ -4,19 +4,38 @@ var board = new five.Board({
   io: new Tessel(),
 });
 
+const throttle = require('lodash/throttle');
+const Barcli = require('Barcli');
+const request = require('superagent');
+
+const graphs = {
+  temperature: new Barcli({ label: 'Temperature', range: [0, 120] }),
+  pressure: new Barcli({ label: 'Pressure', range: [0, 100] }),
+  relativeHumidity: new Barcli({ label: 'Relative Humidity', range: [0, 100] })
+};
+
 board.on('ready', () => {
-  const led = new five.Led.RGB({
-    pins: {
-      red: 'a5',
-      green: 'a6',
-      blue: 'b5'
-    }
+  const monitor = new five.Multi({
+    controller: 'BME280',
   });
 
-  let index = 0;
-  const colors = ['blue', 'teal', 'cyan'];
+  const handleChange = throttle(() => {
+    const temperature = monitor.thermometer.fahrenheit;
+    const pressure = monitor.barometer.pressure;
+    const relativeHumidity = monitor.hygrometer.relativeHumidity;
+    // console.log({ temperature, pressure, relativeHumidity });
+    graphs.temperature.update(temperature);
+    graphs.pressure.update(pressure);
+    graphs.relativeHumidity.update(relativeHumidity);
+    // request
+    // .post('https://dark-raptor.glitch.me/')
+    // .send({ temperature, pressure, relativeHumidity })
+    // .set('accept', 'json')
+    // .end((err, res) => {
+    //   if (err) return console.error(err);
+    //   console.log('Updating server', { response })
+    // });
+  }, 470);
 
-  board.loop(500, () => {
-    led.color(colors[index++ % colors.length]);
-  });
+  monitor.on('change', handleChange);
 });
