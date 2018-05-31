@@ -5,36 +5,27 @@ var board = new five.Board({
 });
 
 const env = require('./env');
-const sendgrid = require('@sendgrid/mail');
-sendgrid.setApiKey(env.sendgrid);
 
-const throttle = require('lodash/throttle');
-
-const openMessage = {
-  to: 'tessel-earl@mailinator.com',
-  from: 'no-reply@mailinator.com',
-  subject: 'The Door has been opened',
-  text: 'Everything we feared is happening now.',
-  html: '<p>Everything we feared is happening now.</p>',
-};
+const Twitter = require('node-tweet-stream');
+const t = new Twitter(env.twitter);
 
 board.on('ready', () => {
-  const door = new five.Switch({
-    pin: 'a2',
-    invert: true,
+  const lcd = new five.LCD({
+    pins: ['a2', 'a3', 'a4', 'a5', 'a6', 'a7']
   });
 
-  const handleOpen = throttle(() => {
-    console.log('handle Open');
-    sendgrid.send(openMessage)
-      .then(() => {
-        console.log('sent the warning message. preparing to panic');
-      })
-      .catch(() => {
-        console.log('something went terribly terribly wrong');;
-      }, 2000);
+  t.on('tweet', tweet => {
+    const text = tweet.text;
+    const firstSixteen = text.slice(0,16);
+    const secondSixteen = text.slice(0,16);
+
+    lcd.cursor(0,0).print(firstSixteen);
+    lcd.cursor(1,0).print(secondSixteen);
   });
 
-  door.on('open', handleOpen);
-  door.on('close', () => { console.log('close'); })
+  t.track('#AngularBelgium');
+
+  lcd.useChar("duck");
+  lcd.cursor(0,0).print('Hello');
+  lcd.cursor(1,0).print(':duck:  :duck:  :duck: Earl ');
 });
