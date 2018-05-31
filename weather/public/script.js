@@ -1,4 +1,5 @@
 const socket = io();
+const request = require('superagent');
 
 const getChart = (id, value) => {
   var chart = c3.generate({
@@ -41,4 +42,12 @@ socket.on('weather change', data => {
   temperatureMetric.innerHTML = getChart(data.temperature);
   pressureMetric.innerText = getChart(data.pressure);
   relativeHumidityMetric.innerText = getChart(data.relativeHumidity);
+  request
+    .post('https://dark-raptor.glitch.me/')
+    .send({...data})
+    .set('accept', 'json')
+    .end((err, res) => {
+      if (err) return console.error(err);
+      console.log('Updating server', { response })
+  });
 });
